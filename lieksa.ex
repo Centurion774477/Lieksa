@@ -12,32 +12,9 @@ read_file = fn file ->
   end
 end
 
-generate_html = fn
-  nil, _buffer ->
-    # return a string instead of nil so everything else like the file writing works fine
-    ""
-  groups, buffer ->
-    functionName = groups["function_name"]
-    arguments = groups["arguments"]
-
-    # In the future I might add IDs or classes so the HTML can be styled
-
-    # the buffer might print out as one long string. I'll have to add newlines somehow
-
-    """
-    <h2>#{functionName}</h2>
-
-    <h3>Receives: #{arguments}</h3>
-
-    <p>
-    #{buffer}
-    </p>
-    """
-end
-
 write_out = fn
   data, file ->
-    case File.write(file, data) do
+    case File.write(file, data, [:append]) do
       :ok ->
         true
       {:error, reason} ->
@@ -45,14 +22,64 @@ write_out = fn
     end
 end
 
+generate_html = fn
+  nil, _buffer ->
+    # return a string instead of nil so everything else like the file writing works fine
+    ""
 
-[fileToRead, fileToCreate] = case System.argv() do
-  [fileToRead, fileToCreate] ->
-    [fileToRead, fileToCreate]
+  groups, buffer ->
+    functionName = groups["function_name"]
+    arguments = groups["arguments"]
+
+    """
+    <h2 class="lieksa-function-name">#{functionName}</h2>
+
+    <h3 class="lieksa-function-arguments">Receives: #{arguments}</h3>
+
+    <p class="lieksa-function-description">
+    #{buffer}
+    </p>
+
+    """
+end
+
+
+[fileToRead, fileToCreate | flags] = case System.argv() do
+  [fileToRead, fileToCreate | flags] ->
+    [fileToRead, fileToCreate | flags]
   _ ->
     IO.puts("Please provide your code and your desired output file name as the first and second arguments.")
     System.stop()
 end
+
+
+
+generate_stylesheet = Enum.member?(flags, "style-it")
+
+link_element = case generate_stylesheet do
+  true ->
+    """
+    /*foobar*/
+    """ |> write_out.("lieksa.css")
+
+    "<link rel='stylesheet' href='lieksa.css'>"
+  false ->
+    ""
+end
+
+"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Lieksa Documentation</title>
+  #{link_element}
+</head>
+<body>
+
+<!--Generated with Lieksa-->
+
+""" |> write_out.(fileToCreate)
 
 read_file.(fileToRead)
 |> String.split("\n")
@@ -65,18 +92,25 @@ read_file.(fileToRead)
     # the buffer becomes the body and the function name becomes the header.
     # the arguments are important too because those are included in the documentation.
     String.starts_with?(line, "def") ->
-      groups = Regex.named_captures(~r/def (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
+      groups = Regex.named_captures(~r/(def|function) (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
 
       cleaned_buffer = accumulator
-      |> Enum.map(&String.replace_prefix(&1, "# ", ""))
+      |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
       |> Enum.join("\n")
 
       generate_html.(groups, cleaned_buffer)
       |> write_out.(fileToCreate)
 
+      []
     true ->
       accumulator
   end
 end)
+
+# close the opened HTML tags
+"""
+</body>
+</html>
+""" |> write_out.(fileToCreate)
 
 IO.puts("Successfully generated your HTML in #{fileToCreate}.")
