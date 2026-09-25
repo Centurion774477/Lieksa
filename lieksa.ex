@@ -32,7 +32,7 @@ generate_html = fn
     arguments = groups["arguments"]
 
     """
-    <h2 class="lieksa-function-name">#{functionName}</h2>
+    <h2 class="lieksa-function-name" id="#{functionName}">#{functionName}</h2>
 
     <h3 class="lieksa-function-arguments">Receives: #{arguments}</h3>
 
@@ -42,6 +42,41 @@ generate_html = fn
 
     """
 end
+
+generate_nav = fn functions ->
+  links = Enum.map(functions, fn function ->
+    "    <li><a href='##{function}'>#{function}</a></li>"
+  end)
+
+  nav_opening = """
+  <nav id="lieksa-nav">
+    <ol>
+  """
+
+  nav_closing = """
+    </ol>
+  </nav>
+
+  """
+
+  [nav_opening] ++ links ++ [nav_closing]
+  |> Enum.join("\n")
+end
+
+add_nav = fn lines, fileToCreate ->
+  Enum.reduce(lines, [], fn line, accumulator ->
+    # save this regex pattern as a variable later
+    if String.starts_with?(line, "def") do
+      groups = Regex.named_captures(~r/def (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
+      accumulator ++ [groups["function_name"]]
+    else
+      accumulator
+    end
+  end)
+  |> generate_nav.()
+  |> write_out.(fileToCreate)
+end
+
 
 
 [fileToRead, fileToCreate | flags] = case System.argv() do
@@ -54,7 +89,8 @@ end
 
 
 
-generate_stylesheet = Enum.member?(flags, "style-it")
+generate_stylesheet = Enum.member?(flags, "style-it") # generate a stylesheet and link it to the HTML file
+generate_nav = Enum.member?(flags, "create-nav") # add a <nav> element to the HTML file with links
 
 link_element = case generate_stylesheet do
   true ->
@@ -85,22 +121,25 @@ end
 
 """ |> write_out.(fileToCreate)
 
-read_file.(fileToRead)
+lines = read_file.(fileToRead)
 |> String.split("\n")
-|> Enum.reduce([], fn line, accumulator ->
+
+if generate_nav == true do
+  add_nav.(lines, fileToCreate)
+end
+
+Enum.reduce(lines, [], fn line, accumulator ->
   cond do
     # comments get added to the buffer
     String.starts_with?(line, "#") ->
       accumulator ++ [line]
-    # write the buffer to the output file function declarations
-    # the buffer becomes the body and the function name becomes the header.
-    # the arguments are important too because those are included in the documentation.
+
     String.starts_with?(line, "def") ->
-      groups = Regex.named_captures(~r/(def|function) (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
+      groups = Regex.named_captures(~r/def (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
 
       cleaned_buffer = accumulator
       |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
-      |> Enum.join("\n")
+      |> Enum.join("<br>\n")
 
       generate_html.(groups, cleaned_buffer)
       |> write_out.(fileToCreate)
