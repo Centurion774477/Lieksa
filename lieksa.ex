@@ -59,7 +59,11 @@ generate_stylesheet = Enum.member?(flags, "style-it")
 link_element = case generate_stylesheet do
   true ->
     """
-    /*foobar*/
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
     """ |> write_out.("lieksa.css")
 
     "<link rel='stylesheet' href='lieksa.css'>"
