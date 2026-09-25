@@ -37,9 +37,10 @@ I'd be lying if I said there are no dependencies, but you just need Elixir insta
 For macOS machines using Homebrew you can run:
 `brew install elixir`
 
-The installation section for elixir can be found [here](https://elixir-lang.org/install/)
+The installation information for Elixir can be found [here](https://elixir-lang.org/install/)
 
 I built Lieksa using Erlang/OPT version 29 and Elixir version 1.20.2.
+I can't give you an exact number of what version to install but installing the latest version is probably the safe choice.
 
 ## Actually running it
 
