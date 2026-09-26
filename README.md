@@ -25,7 +25,8 @@ That includes:
 * Python
 * PHP
 
-The only comment symbol that is recognized is a hashtag: '#', but I am actively working on expanding the compatability.
+The comment symbols that are recognized are # and // -- which accounts for a surprising amount of languages.
+
 
 Unlike other documentation generators that only consume your special syntax, Lieksa consumes all of your comments no matter what.
 The catch is, it only consumes comments above a function. I don't see why you would be commenting above a function for any purpose besides documentation, so this shouldn't cause any problems.
