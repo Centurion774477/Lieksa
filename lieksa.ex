@@ -127,15 +127,14 @@ lines = read_file.(fileToRead)
 if generate_nav == true do
   add_nav.(lines, fileToCreate)
 end
-
 Enum.reduce(lines, [], fn line, accumulator ->
   cond do
     # comments get added to the buffer
-    String.starts_with?(line, "#") ->
+    String.starts_with?(line, ["#", "//"]) ->
       accumulator ++ [line]
 
-    String.starts_with?(line, "def") ->
-      groups = Regex.named_captures(~r/def (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
+    String.starts_with?(line, ["def", "function"]) ->
+      groups = Regex.named_captures(~r/(def|function) (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
 
       cleaned_buffer = accumulator
       |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
@@ -156,4 +155,4 @@ end)
 </html>
 """ |> write_out.(fileToCreate)
 
-IO.puts("Successfully generated your HTML in #{fileToCreate}.")
+IO.puts("Successfully generated your HTML in #{fileToCreate}. Cheers!")
