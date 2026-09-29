@@ -1,4 +1,5 @@
 
+# returns a string of file contents
 read_file = fn file ->
   case File.read(file) do
     {:ok, contents} ->
@@ -31,10 +32,17 @@ generate_html = fn
     functionName = groups["function_name"]
     arguments = groups["arguments"]
 
+    argumentsText = case arguments do
+      "" ->
+        "Receives no arguments"
+      _ ->
+        "Receives: #{arguments}"
+    end
+
     """
     <h2 class="lieksa-function-name" id="#{functionName}">#{functionName}</h2>
 
-    <h3 class="lieksa-function-arguments">Receives: #{arguments}</h3>
+    <h3 class="lieksa-function-arguments">#{argumentsText}</h3>
 
     <p class="lieksa-function-description">
     #{buffer}
@@ -75,6 +83,20 @@ add_nav = fn lines, fileToCreate ->
   end)
   |> generate_nav.()
   |> write_out.(fileToCreate)
+end
+
+# returns true if any Lieksa was detected in a given file
+ensure_html_was_generated = fn file ->
+  lines = read_file.(file)
+  |> String.split("\n")
+
+  if Enum.any?(lines, fn line ->
+    String.contains?(line, "class=\"lieksa-function-name\"")
+  end) do
+    true
+  else
+    false
+  end
 end
 
 
@@ -127,6 +149,11 @@ lines = read_file.(fileToRead)
 if generate_nav == true do
   add_nav.(lines, fileToCreate)
 end
+
+Enum.each(lines, fn line ->
+  IO.puts(line)
+end)
+
 Enum.reduce(lines, [], fn line, accumulator ->
   cond do
     # comments get added to the buffer
@@ -138,7 +165,22 @@ Enum.reduce(lines, [], fn line, accumulator ->
 
       cleaned_buffer = accumulator
       |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
-      |> Enum.join("<br>\n")
+      |> Enum.map(&String.replace_prefix(&1, "// ", ""))
+      |> Enum.join("<br>\n") # add HTML newlines and normal newlines
+
+      generate_html.(groups, cleaned_buffer)
+      |> write_out.(fileToCreate)
+
+      []
+    String.match?(line, ~r/(.*) = (\(\) )?(->|=>)/) -> # handle CoffeeScript/JS arrow functions
+      IO.puts("matched: #{line}")
+      # I know this is repetetive
+      groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
+
+      cleaned_buffer = accumulator
+      |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
+      |> Enum.map(&String.replace_prefix(&1, "// ", ""))
+      |> Enum.join("<br>\n") # add HTML newlines and normal newlines
 
       generate_html.(groups, cleaned_buffer)
       |> write_out.(fileToCreate)
@@ -155,4 +197,10 @@ end)
 </html>
 """ |> write_out.(fileToCreate)
 
-IO.puts("Successfully generated your HTML in #{fileToCreate}. Cheers!")
+if ensure_html_was_generated.(fileToCreate) == false do
+  IO.puts("Lieksa didn't find any functions to generate in #{fileToRead}")
+  System.stop()
+  # should probably delete the file too
+else
+  IO.puts("Successfully generated your HTML in #{fileToCreate}. Cheers!")
+end
