@@ -172,7 +172,7 @@ Enum.reduce(lines, [], fn line, accumulator ->
       |> write_out.(fileToCreate)
 
       []
-    String.match?(line, ~r/(.*) = (\(\) )?(->|=>)/) -> # handle CoffeeScript/JS arrow functions
+    String.match?(line, ~r/(.*) = (\(.*\) )?(->|=>)/) -> # handle CoffeeScript/JS arrow functions
       IO.puts("matched: #{line}")
       # I know this is repetetive
       groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
