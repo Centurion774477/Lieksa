@@ -25,6 +25,12 @@ That includes:
 * Python
 * PHP
 
+Lieksa also supports CoffeeScript functions like:
+
+```
+nordicCity = ->
+```
+
 The comment symbols that are recognized are # and // -- which accounts for a surprising amount of languages.
 
 
