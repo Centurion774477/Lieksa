@@ -59,11 +59,21 @@ Then run the one and only command:
 elixir lieksa.ex <your_file> <new_html_file_name>
 ```
 
+Consider adding the `create-nav` flag. This will add an ordered list of each function and provide a link to it's section in the page.
+
+Some documentation will be huge, so I don't want the links to get in your way. Using this flag also adds a button and JavaScript that will hide this nav element so your users can get straight to the point.
+
+```
+elixir lieksa.ex <your_file> <new_html_file_name> create-nav
+```
+
 If you wish, you can generate a (minimal) stylesheet using the `style-it` flag:
 
 ```
 elixir lieksa.ex <your_file> <new_html_file_name> style-it
 ```
+
+
 
 That's Lieksa. I hope you enjoy.
 
