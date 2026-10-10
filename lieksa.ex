@@ -13,14 +13,14 @@ read_file = fn file ->
   end
 end
 
-write_out = fn
-  data, file ->
-    case File.write(file, data, [:append]) do
-      :ok ->
-        true
-      {:error, reason} ->
-        IO.puts("Failed to write to #{file}. Reason: #{reason}")
-    end
+# write data to a file
+write_out = fn data, file ->
+  case File.write(file, data, [:append]) do
+    :ok ->
+      true
+    {:error, reason} ->
+      IO.puts("Failed to write to #{file}. Reason: #{reason}")
+  end
 end
 
 generate_html = fn
@@ -29,7 +29,7 @@ generate_html = fn
     ""
 
   groups, buffer ->
-    functionName = groups["function_name"]
+    functionName = groups["name"]
     arguments = groups["arguments"]
 
     argumentsText = case arguments do
@@ -52,8 +52,9 @@ generate_html = fn
 end
 
 generate_nav = fn functions ->
-  links = Enum.map(functions, fn function ->
-    "    <li><a href='##{function}'>#{function}</a></li>"
+  links = Enum.map(functions, fn
+    nil -> ""
+    name -> "    <li><a href='##{name}'>#{name}</a></li>"
   end)
 
   nav_opening = """
@@ -68,17 +69,21 @@ generate_nav = fn functions ->
   """
 
   [nav_opening] ++ links ++ [nav_closing]
+  |> Enum.filter(&(&1 != "")) # filter out blank strings -- ""
   |> Enum.join("\n")
 end
 
 add_nav = fn lines, fileToCreate ->
   Enum.reduce(lines, [], fn line, accumulator ->
-    # save this regex pattern as a variable later
-    if String.starts_with?(line, "def") do
-      groups = Regex.named_captures(~r/def (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
-      accumulator ++ [groups["function_name"]]
-    else
-      accumulator
+    cond do
+      String.starts_with?(line, "def") ->
+        groups = Regex.named_captures(~r/def (?<name>.*?)\((?<arguments>.*?)\)/, line)
+        accumulator ++ [groups["name"]]
+      String.contains?(line, ["->", "=>"]) ->
+        groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
+        accumulator ++ [groups["name"]]
+      true ->
+        accumulator
     end
   end)
   |> generate_nav.()
@@ -98,8 +103,6 @@ ensure_html_was_generated = fn file ->
     false
   end
 end
-
-
 
 [fileToRead, fileToCreate | flags] = case System.argv() do
   [fileToRead, fileToCreate | flags] ->
@@ -150,10 +153,6 @@ if generate_nav == true do
   add_nav.(lines, fileToCreate)
 end
 
-Enum.each(lines, fn line ->
-  IO.puts(line)
-end)
-
 Enum.reduce(lines, [], fn line, accumulator ->
   cond do
     # comments get added to the buffer
@@ -173,7 +172,6 @@ Enum.reduce(lines, [], fn line, accumulator ->
 
       []
     String.match?(line, ~r/(.*) = (\(.*\) )?(->|=>)/) -> # handle CoffeeScript/JS arrow functions
-      IO.puts("matched: #{line}")
       # I know this is repetitive
       groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
 
