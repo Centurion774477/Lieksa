@@ -58,13 +58,32 @@ generate_nav = fn functions ->
   end)
 
   nav_opening = """
-  <nav id="lieksa-nav">
+
+  <button id="lieksa-toggle-nav">Toggle directory display</button>
+
+  <nav id="lieksa-nav" style="display: none">
     <ol>
   """
 
   nav_closing = """
     </ol>
   </nav>
+
+  <script>
+    // if you don't like reading this, then consider French Press CoffeeScript!
+    // https://github.com/chomp-it/Kahvi
+
+    const toggleButton = document.getElementById('lieksa-toggle-nav');
+    const navElement   = document.getElementById('lieksa-nav');
+
+    toggleButton.addEventListener("click", () => {
+      if (navElement.style.display === 'block') {
+        navElement.style.display = 'none';
+      } else {
+        navElement.style.display = 'block';
+      }
+    });
+  </script>
 
   """
 
