@@ -6,10 +6,10 @@ read_file = fn file ->
       contents
     {:error, :enoent} ->
       IO.puts("The given file: #{file} does not exist in this context.")
-      System.stop()
+      System.halt()
     {:error, reason} ->
       IO.puts("Something went wrong while trying to read #{file}: #{reason}")
-      System.stop()
+      System.halt()
   end
 end
 
@@ -96,11 +96,19 @@ add_nav = fn lines, fileToCreate ->
   Enum.reduce(lines, [], fn line, accumulator ->
     cond do
       String.starts_with?(line, "def") ->
-        groups = Regex.named_captures(~r/def (?<name>.*?)\((?<arguments>.*?)\)/, line)
-        accumulator ++ [groups["name"]]
+        case Regex.named_captures(~r/def (?<name>.*?)\((?<arguments>.*?)\)/, line) do
+          %{"name" => name} ->
+            accumulator ++ [name]
+          nil ->
+            accumulator
+        end
       String.contains?(line, ["->", "=>"]) ->
-        groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
-        accumulator ++ [groups["name"]]
+        case Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(.*\) )?(->|=>)/, line) do
+          %{"name" => name} ->
+            accumulator ++ [name]
+          nil ->
+            accumulator
+        end
       true ->
         accumulator
     end
@@ -114,13 +122,9 @@ ensure_html_was_generated = fn file ->
   lines = read_file.(file)
   |> String.split("\n")
 
-  if Enum.any?(lines, fn line ->
+  Enum.any?(lines, fn line ->
     String.contains?(line, "class=\"lieksa-function-name\"")
-  end) do
-    true
-  else
-    false
-  end
+  end)
 end
 
 [fileToRead, fileToCreate | flags] = case System.argv() do
@@ -128,21 +132,22 @@ end
     [fileToRead, fileToCreate | flags]
   _ ->
     IO.puts("Please provide your code and your desired output file name as the first and second arguments.")
-    System.stop()
+    System.halt()
 end
 
 
-
 generate_stylesheet = Enum.member?(flags, "style-it") # generate a stylesheet and link it to the HTML file
-generate_nav = Enum.member?(flags, "create-nav") # add a <nav> element to the HTML file with links
+generate_nav_flag = Enum.member?(flags, "create-nav") # add a <nav> element to the HTML file with links
 
 link_element = case generate_stylesheet do
   true ->
     """
     body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    h2 {
+    color: #32738C;
     }
     """ |> write_out.("lieksa.css")
 
@@ -168,7 +173,7 @@ end
 lines = read_file.(fileToRead)
 |> String.split("\n")
 
-if generate_nav == true do
+if generate_nav_flag == true do
   add_nav.(lines, fileToCreate)
 end
 
@@ -179,7 +184,7 @@ Enum.reduce(lines, [], fn line, accumulator ->
       accumulator ++ [line]
 
     String.starts_with?(line, ["def", "function"]) ->
-      groups = Regex.named_captures(~r/(def|function) (?<function_name>.*?)\((?<arguments>.*?)\)/, line)
+      groups = Regex.named_captures(~r/(def|function) (?<name>.*?)\((?<arguments>.*?)\)/, line)
 
       cleaned_buffer = accumulator
       |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
@@ -192,7 +197,7 @@ Enum.reduce(lines, [], fn line, accumulator ->
       []
     String.match?(line, ~r/(.*) = (\(.*\) )?(->|=>)/) -> # handle CoffeeScript/JS arrow functions
       # I know this is repetitive
-      groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(\) )?(->|=>)/, line)
+      groups = Regex.named_captures(~r/(?<name>.*) = (?<arguments>\(.*\) )?(->|=>)/, line)
 
       cleaned_buffer = accumulator
       |> Enum.map(&String.replace_prefix(&1, "# ", "")) # remove the comment hashtags
@@ -216,7 +221,7 @@ end)
 
 if ensure_html_was_generated.(fileToCreate) == false do
   IO.puts("Lieksa didn't find any functions to generate in #{fileToRead}")
-  System.stop()
+  System.halt()
   # should probably delete the file too
 else
   IO.puts("Successfully generated your HTML in #{fileToCreate}. Cheers!")
